@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import HTTPException, status
 
 from app.schemas.message import MessageCreate, MessageResponse, PaginatedMessageResponse
+from app.models.cassandra_models import MessageModel
 
 class MessageController:
     """
@@ -23,11 +24,26 @@ class MessageController:
         Raises:
             HTTPException: If message sending fails
         """
-        # This is a stub - students will implement the actual logic
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Method not implemented"
-        )
+        try:
+            result = await MessageModel.create_message(
+                content=message_data.content,
+                sender_id=message_data.sender_id,
+                receiver_id=message_data.receiver_id
+            )
+            uuid_to_int = lambda uuid_obj: int(str(uuid_obj).replace('-', '')[:10], 16)
+            return MessageResponse(
+                id=uuid_to_int(result['id']),
+                sender_id=result['sender_id'],
+                receiver_id=result['receiver_id'],
+                content=result['content'],
+                created_at=result['created_at'],
+                conversation_id=uuid_to_int(result['conversation_id'])
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to send message: {str(e)}"
+            )
     
     async def get_conversation_messages(
         self, 
@@ -49,11 +65,34 @@ class MessageController:
         Raises:
             HTTPException: If conversation not found or access denied
         """
-        # This is a stub - students will implement the actual logic
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Method not implemented"
-        )
+        try:
+            result = await MessageModel.get_conversation_messages(
+                conversation_id=conversation_id,
+                page=page,
+                limit=limit
+            )
+            messages = []
+            for msg_data in result['data']:
+                uuid_to_int = lambda uuid_obj: int(str(uuid_obj).replace('-', '')[:10], 16)
+                messages.append(MessageResponse(
+                    id=uuid_to_int(msg_data['id']),
+                    sender_id=msg_data['sender_id'],
+                    receiver_id=msg_data['receiver_id'],
+                    content=msg_data['content'],
+                    created_at=msg_data['created_at'],
+                    conversation_id=uuid_to_int(msg_data['conversation_id'])
+                ))
+            return PaginatedMessageResponse(
+                total=result['total'],
+                page=result['page'],
+                limit=result['limit'],
+                data=messages
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to get conversation messages: {str(e)}"
+            )
     
     async def get_messages_before_timestamp(
         self, 
@@ -77,8 +116,32 @@ class MessageController:
         Raises:
             HTTPException: If conversation not found or access denied
         """
-        # This is a stub - students will implement the actual logic
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Method not implemented"
-        ) 
+        try:
+            result = await MessageModel.get_messages_before_timestamp(
+                conversation_id=conversation_id,
+                before_timestamp=before_timestamp,
+                page=page,
+                limit=limit
+            )
+            messages = []
+            for msg_data in result['data']:
+                uuid_to_int = lambda uuid_obj: int(str(uuid_obj).replace('-', '')[:10], 16)
+                messages.append(MessageResponse(
+                    id=uuid_to_int(msg_data['id']),
+                    sender_id=msg_data['sender_id'],
+                    receiver_id=msg_data['receiver_id'],
+                    content=msg_data['content'],
+                    created_at=msg_data['created_at'],
+                    conversation_id=uuid_to_int(msg_data['conversation_id'])
+                ))
+            return PaginatedMessageResponse(
+                total=result['total'],
+                page=result['page'],
+                limit=result['limit'],
+                data=messages
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to get messages before timestamp: {str(e)}"
+            ) 

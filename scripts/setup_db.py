@@ -36,29 +36,54 @@ def wait_for_cassandra():
 def create_keyspace(session):
     """
     Create the keyspace if it doesn't exist.
-    
-    This is where students will define the keyspace configuration.
     """
     logger.info(f"Creating keyspace {CASSANDRA_KEYSPACE} if it doesn't exist...")
     
-    # TODO: Students should implement keyspace creation
-    # Hint: Consider replication strategy and factor for a distributed database
+    session.execute("""
+    CREATE KEYSPACE IF NOT EXISTS %s 
+    WITH replication = {
+        'class': 'SimpleStrategy',
+        'replication_factor': 3
+    }
+    """ % CASSANDRA_KEYSPACE)
     
     logger.info(f"Keyspace {CASSANDRA_KEYSPACE} is ready.")
 
 def create_tables(session):
     """
     Create the tables for the application.
-    
-    This is where students will define the table schemas based on the requirements.
     """
     logger.info("Creating tables...")
     
-    # TODO: Students should implement table creation
-    # Hint: Consider:
-    # - What tables are needed to implement the required APIs?
-    # - What should be the primary keys and clustering columns?
-    # - How will you handle pagination and time-based queries?
+    session.execute("""
+    CREATE TABLE IF NOT EXISTS %s.messages (
+        conversation_id UUID,
+        message_id UUID,
+        sender_id UUID,
+        content TEXT,
+        created_at TIMESTAMP,
+        PRIMARY KEY ((conversation_id), created_at, message_id)
+    ) WITH CLUSTERING ORDER BY (created_at DESC, message_id ASC)
+    """ % CASSANDRA_KEYSPACE)
+    
+    session.execute("""
+    CREATE TABLE IF NOT EXISTS %s.conversations (
+        user_id UUID,
+        conversation_id UUID,
+        other_user_id UUID,
+        last_message_at TIMESTAMP,
+        last_message_content TEXT,
+        PRIMARY KEY ((user_id), last_message_at, conversation_id)
+    ) WITH CLUSTERING ORDER BY (last_message_at DESC, conversation_id ASC)
+    """ % CASSANDRA_KEYSPACE)
+    
+    session.execute("""
+    CREATE TABLE IF NOT EXISTS %s.conversation_participants (
+        conversation_id UUID,
+        user_id UUID,
+        PRIMARY KEY ((conversation_id), user_id)
+    )
+    """ % CASSANDRA_KEYSPACE)
     
     logger.info("Tables created successfully.")
 
